@@ -31,6 +31,9 @@
 (define (inotify-watches-add! in watch)
   (hash-set! (inotify-watches in) (inotify-watch-descriptor watch) watch))
 
+(define (inotify-watches-remove! in watch)
+  (hash-remove! (inotify-watches in) (inotify-watch-descriptor watch)))
+
 (define fd->port
   (let ([f (get-ffi-obj "scheme_make_fd_input_port" #f
                         (_fun _int _racket _int _int -> _racket))])
@@ -100,7 +103,7 @@
                   (inotify-watch-descriptor w))
               #f))
 
-(define inotify-add-watch
+(define inotify-add-watch!
   (let ([add-watch (get-ffi-obj "inotify_add_watch" #f
                                 (_fun #:save-errno 'posix
                                       _inotify _file _inotify-event-mask
@@ -116,7 +119,12 @@
       (inotify-watches-add! in watch)
       watch)))      
 
-(define inotify-rm-watch
+(define (find-watch-path in w)
+  (define watch (if path? (path->bytes w) w))
+  (for/or ([v (in-hash-values (inotify-watches in))])
+    (and (bytes=? watch (path->bytes (inotify-watch-path v))) v)))
+
+(define inotify-rm-watch!
   (let ([rm-watch (get-ffi-obj "inotify_rm_watch" #f
                                (_fun #:save-errno 'posix
                                      _inotify _inotify-watch
@@ -125,20 +133,16 @@
                                             (error 'inotify-rm-watch "~a"
                                                    (errno-lookup (saved-errno)))
                                             (void))))])
-    (define (find-watch-path in orig-w)
-      (define w (if path? (path->bytes orig-w) orig-w))
-      (or (for/or ([v (in-hash-values (inotify-watches in))])
-            (and (bytes=? w (path->bytes (inotify-watch-path v))) v))
-          (error 'inotify-rm-watch
-                 "could not find path associated with inotify: ~a"
-                 orig-w)))      
-    
     (lambda (in w)
-      (define watch (if (path-string? w)
-                        (find-watch-path in (path->complete-path w))
-                        w))      
+      (define watch 
+        (cond [(inotify-watch? w) w]
+              [(and (path-string? w) (find-watch-path in (path->complete-path w)))
+               => values]
+              [else
+                (error 'inotify-rm-watch
+                       "could not find path associated with inotify: ~a" w)]))
       (rm-watch in watch)
-      (hash-remove! (inotify-watches in) (inotify-watch-descriptor watch)))))
+      (inotify-watches-remove! in watch))))
 
 (struct inotify-event (watch mask cookie path) #:transparent)
 
@@ -162,7 +166,7 @@
 #|
 
 (define p (inotify-init))
-(define w (inotify-add-watch p "/var/log/syslog" 'IN_MODIFY))
+(define w (inotify-add-watch! p "/var/log/syslog" 'IN_MODIFY))
 
 
 |#
