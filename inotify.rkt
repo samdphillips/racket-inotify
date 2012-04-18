@@ -144,7 +144,7 @@
       (rm-watch in watch)
       (inotify-watches-remove! in watch))))
 
-(struct inotify-event (watch mask cookie path) #:transparent)
+(struct inotify-event (watch mask cookie path))
 
 (define (read-inotify in)
   (define inp (inotify-port in))
