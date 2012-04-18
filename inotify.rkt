@@ -119,10 +119,12 @@
       (inotify-watches-add! in watch)
       watch)))      
 
-(define (find-watch-path in w)
-  (define watch (if path? (path->bytes w) w))
+(define (inotify-find-watch in w)
+  (define path 
+    (path->bytes (path->complete-path w)))
+
   (for/or ([v (in-hash-values (inotify-watches in))])
-    (and (bytes=? watch (path->bytes (inotify-watch-path v))) v)))
+    (and (bytes=? path (path->bytes (inotify-watch-path v))) v)))
 
 (define inotify-rm-watch!
   (let ([rm-watch (get-ffi-obj "inotify_rm_watch" #f
@@ -136,7 +138,7 @@
     (lambda (in w)
       (define watch 
         (cond [(inotify-watch? w) w]
-              [(and (path-string? w) (find-watch-path in (path->complete-path w)))
+              [(and (path-string? w) (inotify-find-watch in w))
                => values]
               [else
                 (error 'inotify-rm-watch
@@ -162,6 +164,17 @@
                      (bytes->path (read-bytes len inp))))
   
   (inotify-event watch mask cookie path))
+
+(provide inotify-init
+         inotify-add-watch!
+         inotify-rm-watch!
+         inotify-find-watch
+
+         inotify-event-watch
+         inotify-event-mask
+         inotify-event-cookie
+         inotify-event-path
+         )
 
 #|
 
