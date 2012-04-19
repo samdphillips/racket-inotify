@@ -148,6 +148,13 @@
 
 (struct inotify-event (watch mask cookie path))
 
+(define (strip-nulls b)
+  (define (find-nulls i)
+    (if (zero? (bytes-ref b i))
+        (find-nulls (sub1 i))
+        (subbytes b 0 (add1 i))))
+  (find-nulls (sub1 (bytes-length b))))
+
 (define (read-inotify in)
   (define inp (inotify-port in))
   (define hdr (read-bytes 16 inp))
@@ -161,7 +168,10 @@
   (define len    (bytes->integer #f 12))
   (define path   (if (zero? len)
                      (inotify-watch-path watch)
-                     (bytes->path (read-bytes len inp))))
+                     (path->complete-path
+                       (bytes->path 
+                         (strip-nulls 
+                           (read-bytes len inp))))))
   
   (inotify-event watch mask cookie path))
 
