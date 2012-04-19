@@ -26,7 +26,7 @@
   (lambda (in)
     (handle-evt (inotify-port in)
                 (lambda (x)
-                  (read-inotify in)))))                        
+                  (inotify-read in)))))                        
 
 (define (inotify-watches-add! in watch)
   (hash-set! (inotify-watches in) (inotify-watch-descriptor watch) watch))
@@ -155,7 +155,7 @@
         (subbytes b 0 (add1 i))))
   (find-nulls (sub1 (bytes-length b))))
 
-(define (read-inotify in)
+(define (inotify-read in)
   (define inp (inotify-port in))
   (define hdr (read-bytes 16 inp))
   
