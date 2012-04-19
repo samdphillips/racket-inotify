@@ -113,7 +113,7 @@
                                                     (errno-lookup (saved-errno)))
                                              wd)))])
     (lambda (in file events)
-      (define path  (path->complete-path file))
+      (define path  (simplify-path (path->complete-path file)))
       (define wd    (add-watch in file events))
       (define watch (inotify-watch wd path))
       (inotify-watches-add! in watch)
@@ -121,7 +121,7 @@
 
 (define (inotify-find-watch in w)
   (define path 
-    (path->bytes (path->complete-path w)))
+    (path->bytes (simplify-path (path->complete-path w))))
 
   (for/or ([v (in-hash-values (inotify-watches in))])
     (and (bytes=? path (path->bytes (inotify-watch-path v))) v)))
