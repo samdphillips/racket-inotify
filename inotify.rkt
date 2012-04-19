@@ -3,6 +3,9 @@
 (require (only-in '#%foreign 
                   ctype-c->scheme)
          ffi/unsafe
+         
+         (rename-in racket/contract
+                    [-> ->/c])
                   
          (rename-in "errno.h" 
                     [errno-lookup-table errno-ext-table])
@@ -90,6 +93,30 @@
      IN_ONESHOT             = #x80000000 ;     /* only send event once */
      )))
 
+(define inotify-event-mask/c
+  (let ([mask/c (symbols 'IN_ACCESS
+                         'IN_MODIFY
+                         'IN_ATTRIB
+                         'IN_CLOSE_WRITE
+                         'IN_CLOSE_NOWRITE
+                         'IN_OPEN
+                         'IN_MOVED_FROM
+                         'IN_MOVED_TO
+                         'IN_CREATE
+                         'IN_DELETE
+                         'IN_DELETE_SELF
+                         'IN_MOVE_SELF
+                         'IN_UNMOUNT
+                         'IN_Q_OVERFLOW
+                         'IN_IGNORED
+                         'IN_ONLYDIR
+                         'IN_DONT_FOLLOW
+                         'IN_EXCL_UNLINK
+                         'IN_MASK_ADD
+                         'IN_ISDIR
+                         'IN_ONESHOT)])
+    (or/c mask/c (listof mask/c))))
+
 (define decode-inotify-event-mask (ctype-c->scheme _inotify-event-mask))
 
 (struct inotify-watch (descriptor path))
@@ -175,21 +202,25 @@
   
   (inotify-event watch mask cookie path))
 
-(provide inotify-init
-         inotify-add-watch!
-         inotify-rm-watch!
-         inotify-find-watch
+(provide/contract [inotify-init       (->* () ((one-of/c 'IN_CLOEXEC 'IN_NONBLOCK)) inotify?)]
+                  [inotify-add-watch! (->/c inotify? path-string?  inotify-event-mask/c inotify-watch?)]
+                  [inotify-rm-watch!  (->/c inotify? (or/c path-string? inotify-watch?) any)]
+                  [inotify-find-watch (->/c inotify? path-string? inotify-watch?)]
+                  [inotify-read       (->/c inotify? inotify-event?)]
+                  
+                  [inotify-event-watch  (->/c inotify-event? inotify-watch?)]
+                  [inotify-event-mask   (->/c inotify-event? inotify-event-mask/c)]
+                  [inotify-event-cookie (->/c inotify-event? integer?)]
+                  [inotify-event-path   (->/c inotify-event? path?)]
+                  
+                  [inotify?           (->/c any/c any)]
+                  [inotify-watch?     (->/c any/c any)]
+                  [inotify-event?     (->/c any/c any)])
 
-         inotify-event-watch
-         inotify-event-mask
-         inotify-event-cookie
-         inotify-event-path
-         )
 
 #|
 
 (define p (inotify-init))
 (define w (inotify-add-watch! p "/var/log/syslog" 'IN_MODIFY))
-
 
 |#
