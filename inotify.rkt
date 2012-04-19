@@ -168,10 +168,10 @@
   (define len    (bytes->integer #f 12))
   (define path   (if (zero? len)
                      (inotify-watch-path watch)
-                     (path->complete-path
-                       (bytes->path 
-                         (strip-nulls 
-                           (read-bytes len inp))))))
+                     (build-path (inotify-watch-path watch)
+                                 (bytes->path 
+                                   (strip-nulls 
+                                     (read-bytes len inp))))))
   
   (inotify-event watch mask cookie path))
 
